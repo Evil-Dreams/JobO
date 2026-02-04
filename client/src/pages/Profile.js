@@ -21,7 +21,6 @@ import userService from '../services/userService';
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   
@@ -58,39 +57,29 @@ const Profile = () => {
     position: '',
     experienceStart: '',
     experienceEnd: '',
-    experienceDescription: '',
   });
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        setIsLoading(true);
         const profile = await userService.getProfile();
         const skillsText = Array.isArray(profile?.skills)
           ? profile.skills.map((skill) => skill?.name).filter(Boolean).join(', ')
-          : '';
-
+          : profile?.skills || '';
+        
         setFormData({
-          fullName: profile?.name || '',
+          fullName: profile?.fullName || '',
           headline: profile?.headline || '',
           bio: profile?.bio || '',
           location: profile?.location || '',
           email: profile?.email || '',
           phone: profile?.phone || '',
-          // Additional basic info fields
-          dateOfBirth: profile?.dateOfBirth || '',
-          gender: profile?.gender || '',
-          nationality: profile?.nationality || '',
-          languages: profile?.languages || '',
-          workAuthorization: profile?.workAuthorization || '',
-          salaryExpectation: profile?.salaryExpectation || '',
-          availability: profile?.availability || '',
-          linkedin: profile?.links?.linkedin || '',
-          github: profile?.links?.github || '',
-          twitter: profile?.links?.twitter || '',
-          portfolio: profile?.links?.portfolio || '',
-          skillsText,
-          // Education fields
+          website: profile?.website || '',
+          linkedin: profile?.linkedin || '',
+          github: profile?.github || '',
+          experience: profile?.experience || [],
+          education: profile?.education || [],
+          skills: skillsText,
           degree: profile?.education?.degree || '',
           college: profile?.education?.college || '',
           university: profile?.education?.university || '',
@@ -108,8 +97,6 @@ const Profile = () => {
         
       } catch (error) {
         setErrorMessage('Failed to load profile. Please try again.');
-      } finally {
-        setIsLoading(false);
       }
     };
 
