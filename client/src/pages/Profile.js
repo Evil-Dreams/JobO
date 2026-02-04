@@ -43,7 +43,7 @@ const Profile = () => {
     github: '',
     twitter: '',
     portfolio: '',
-    skillsText: '',
+    skills: '', // Changed from skillsText to skills for consistency
     // Education fields
     degree: '',
     college: '',
@@ -57,6 +57,7 @@ const Profile = () => {
     position: '',
     experienceStart: '',
     experienceEnd: '',
+    experienceDescription: '',
   });
 
   useEffect(() => {
@@ -65,21 +66,30 @@ const Profile = () => {
         const profile = await userService.getProfile();
         const skillsText = Array.isArray(profile?.skills)
           ? profile.skills.map((skill) => skill?.name).filter(Boolean).join(', ')
-          : profile?.skills || '';
+          : '';
         
         setFormData({
-          fullName: profile?.fullName || '',
+          fullName: profile?.name || '', // Fixed: backend uses 'name' not 'fullName'
           headline: profile?.headline || '',
           bio: profile?.bio || '',
           location: profile?.location || '',
           email: profile?.email || '',
           phone: profile?.phone || '',
           website: profile?.website || '',
-          linkedin: profile?.linkedin || '',
-          github: profile?.github || '',
-          experience: profile?.experience || [],
-          education: profile?.education || [],
+          linkedin: profile?.links?.linkedin || '',
+          github: profile?.links?.github || '',
+          twitter: profile?.links?.twitter || '',
+          portfolio: profile?.links?.portfolio || '',
           skills: skillsText,
+          // Basic info
+          dateOfBirth: profile?.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().split('T')[0] : '',
+          gender: profile?.gender || '',
+          nationality: profile?.nationality || '',
+          languages: profile?.languages || '',
+          workAuthorization: profile?.workAuthorization || '',
+          salaryExpectation: profile?.salaryExpectation || '',
+          availability: profile?.availability || '',
+          // Education - parse if stored as object
           degree: profile?.education?.degree || '',
           college: profile?.education?.college || '',
           university: profile?.education?.university || '',
@@ -87,7 +97,7 @@ const Profile = () => {
           startYear: profile?.education?.startYear || '',
           endYear: profile?.education?.endYear || '',
           gpa: profile?.education?.gpa || '',
-          // Experience fields
+          // Experience - parse if stored as object
           company: profile?.experience?.company || '',
           position: profile?.experience?.position || '',
           experienceStart: profile?.experience?.startYear || '',
@@ -109,61 +119,63 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
-      const skillsArray = formData.skillsText
+      const skillsArray = formData.skills
         .split(',')
         .map((skill) => skill.trim())
         .filter(Boolean)
         .map((name) => ({ name }));
 
-      // Create FormData for file upload
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.fullName);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('headline', formData.headline);
-      formDataToSend.append('bio', formData.bio);
-      
-      // Additional basic info fields
-      formDataToSend.append('dateOfBirth', formData.dateOfBirth);
-      formDataToSend.append('gender', formData.gender);
-      formDataToSend.append('nationality', formData.nationality);
-      formDataToSend.append('languages', formData.languages);
-      formDataToSend.append('workAuthorization', formData.workAuthorization);
-      formDataToSend.append('salaryExpectation', formData.salaryExpectation);
-      formDataToSend.append('availability', formData.availability);
-      
-      // Education data as JSON
-      const educationData = {
-        degree: formData.degree,
-        college: formData.college,
-        university: formData.university,
-        branch: formData.branch,
-        startYear: formData.startYear,
-        endYear: formData.endYear,
-        gpa: formData.gpa
+      // Create regular object instead of FormData for better compatibility
+      const profileData = {
+        name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        location: formData.location,
+        headline: formData.headline,
+        bio: formData.bio,
+        
+        // Additional basic info fields
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        nationality: formData.nationality,
+        languages: formData.languages,
+        workAuthorization: formData.workAuthorization,
+        salaryExpectation: formData.salaryExpectation,
+        availability: formData.availability,
+        
+        // Links as object
+        links: {
+          linkedin: formData.linkedin,
+          github: formData.github,
+          twitter: formData.twitter,
+          portfolio: formData.portfolio,
+        },
+        
+        // Skills as array
+        skills: skillsArray,
+        
+        // Education as object
+        education: {
+          degree: formData.degree,
+          college: formData.college,
+          university: formData.university,
+          branch: formData.branch,
+          startYear: formData.startYear,
+          endYear: formData.endYear,
+          gpa: formData.gpa
+        },
+        
+        // Experience as object
+        experience: {
+          company: formData.company,
+          position: formData.position,
+          startYear: formData.experienceStart,
+          endYear: formData.experienceEnd,
+          description: formData.experienceDescription
+        }
       };
-      formDataToSend.append('education', JSON.stringify(educationData));
-      
-      // Experience data as JSON
-      const experienceData = {
-        company: formData.company,
-        position: formData.position,
-        startYear: formData.experienceStart,
-        endYear: formData.experienceEnd,
-        description: formData.experienceDescription
-      };
-      formDataToSend.append('experience', JSON.stringify(experienceData));
-      
-      formDataToSend.append('links', JSON.stringify({
-        linkedin: formData.linkedin,
-        github: formData.github,
-        twitter: formData.twitter,
-        portfolio: formData.portfolio,
-      }));
-      formDataToSend.append('skills', JSON.stringify(skillsArray));
 
-      await userService.updateProfile(formDataToSend);
+      await userService.updateProfile(profileData);
 
       setIsEditing(false);
       setSuccessMessage('Profile updated successfully!');
@@ -658,8 +670,8 @@ const Profile = () => {
                   multiline
                   rows={4}
                   label="Skills"
-                  name="skillsText"
-                  value={formData.skillsText}
+                  name="skills"
+                  value={formData.skills}
                   onChange={handleChange}
                   placeholder="Enter your skills separated by commas (e.g., JavaScript, React, Node.js, Python)"
                   disabled={!isEditing}

@@ -48,13 +48,23 @@ const updateProfile = async (req, res) => {
       goals
     } = req.body;
 
-    // Parse skills if it's a string
+    // Parse skills if it's a string or array
     let parsedSkills = skills;
     if (typeof skills === 'string') {
       try {
         parsedSkills = JSON.parse(skills);
       } catch (error) {
         parsedSkills = [];
+      }
+    }
+
+    // Parse links if it's a string
+    let parsedLinks = links;
+    if (typeof links === 'string') {
+      try {
+        parsedLinks = JSON.parse(links);
+      } catch (error) {
+        parsedLinks = {};
       }
     }
 
@@ -72,7 +82,7 @@ const updateProfile = async (req, res) => {
     if (workAuthorization) updateFields.workAuthorization = workAuthorization;
     if (salaryExpectation) updateFields.salaryExpectation = salaryExpectation;
     if (availability) updateFields.availability = availability;
-    if (links) updateFields.links = links;
+    if (parsedLinks) updateFields.links = parsedLinks;
     if (parsedSkills) updateFields.skills = parsedSkills;
     if (experience !== undefined) updateFields.experience = experience;
     if (education !== undefined) updateFields.education = education;

@@ -88,12 +88,20 @@ const userSchema = new mongoose.Schema({
     }
   }],
   experience: {
-    type: String,
-    trim: true
+    company: String,
+    position: String,
+    startYear: String,
+    endYear: String,
+    description: String
   },
   education: {
-    type: String,
-    trim: true
+    degree: String,
+    college: String,
+    university: String,
+    branch: String,
+    startYear: String,
+    endYear: String,
+    gpa: String
   },
   preferences: {
     jobTitles: [String],
