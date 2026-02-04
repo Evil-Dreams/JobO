@@ -23,6 +23,7 @@ import {
   ArrowForward,
   ArrowBack,
   Check,
+  Home,
 } from '@mui/icons-material';
 import { updateProfile } from '../store/userSlice';
 
@@ -256,6 +257,22 @@ const CompleteProfile = () => {
       }}
     >
       <Container maxWidth="md">
+        {/* Back to Home Button */}
+        <Button
+          startIcon={<Home />}
+          onClick={() => navigate('/')}
+          sx={{
+            mb: 3,
+            color: '#94a3b8',
+            '&:hover': {
+              color: '#22d3ee',
+              bgcolor: 'rgba(6, 182, 212, 0.1)',
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+
         {/* Header */}
         <Box sx={{ textAlign: 'center', mb: 5 }}>
           <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc', mb: 1 }}>

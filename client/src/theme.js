@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 
-// Dark Slate Theme with Cyan/Teal Accents - Inspired by JobTrack.ai
+// Dark Slate Theme with Cyan/Teal Accents - Inspired by Evil Dreams
 const theme = createTheme({
   palette: {
     mode: 'dark',

@@ -19,9 +19,66 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters long']
   },
+  profileImage: {
+    type: String,
+    default: null // URL to uploaded profile image
+  },
   phone: {
     type: String,
     trim: true
+  },
+  headline: {
+    type: String,
+    trim: true
+  },
+  location: {
+    type: String,
+    trim: true
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
+  // Additional profile fields
+  dateOfBirth: {
+    type: Date,
+    default: null
+  },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other', 'Prefer not to say', ''],
+    default: ''
+  },
+  nationality: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  languages: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  workAuthorization: {
+    type: String,
+    enum: ['Citizen', 'Permanent Resident', 'Work Visa', 'Student Visa', 'Other', ''],
+    default: ''
+  },
+  salaryExpectation: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  availability: {
+    type: String,
+    enum: ['Immediately', '2 weeks', '1 month', '2 months', '3+ months', ''],
+    default: ''
+  },
+  links: {
+    linkedin: String,
+    portfolio: String,
+    github: String,
+    twitter: String
   },
   skills: [{
     name: String,
@@ -34,6 +91,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  education: {
+    type: String,
+    trim: true
+  },
   preferences: {
     jobTitles: [String],
     locations: [String],
@@ -43,8 +104,12 @@ const userSchema = new mongoose.Schema({
     industries: [String]
   },
   resumes: [{
+    _id: mongoose.Schema.Types.ObjectId,
     title: String,
-    content: String,
+    fileName: String,
+    fileSize: String,
+    filePath: String, // Path to stored file
+    targetRole: String,
     uploadedAt: {
       type: Date,
       default: Date.now
@@ -52,13 +117,15 @@ const userSchema = new mongoose.Schema({
     isPrimary: Boolean
   }],
   coverLetters: [{
+    _id: mongoose.Schema.Types.ObjectId,
     title: String,
     content: String,
+    jobPosition: String,
+    company: String,
     createdAt: {
       type: Date,
       default: Date.now
-    },
-    relatedJob: String
+    }
   }],
   goals: {
     targetApplicationsPerWeek: Number,

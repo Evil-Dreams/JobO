@@ -1,5 +1,13 @@
-const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads/resumes');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Get user profile
 const getProfile = async (req, res) => {
@@ -15,31 +23,60 @@ const getProfile = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    
+    
+    
 
     const {
       name,
+      headline,
       phone,
+      location,
+      bio,
+      dateOfBirth,
+      gender,
+      nationality,
+      languages,
+      workAuthorization,
+      salaryExpectation,
+      availability,
+      links,
       skills,
       experience,
+      education,
       preferences,
-      resumes,
-      coverLetters,
       goals
     } = req.body;
+
+    // Parse skills if it's a string
+    let parsedSkills = skills;
+    if (typeof skills === 'string') {
+      try {
+        parsedSkills = JSON.parse(skills);
+      } catch (error) {
+        parsedSkills = [];
+      }
+    }
 
     // Build update object
     const updateFields = {};
     if (name) updateFields.name = name;
+    if (headline !== undefined) updateFields.headline = headline;
     if (phone) updateFields.phone = phone;
-    if (skills) updateFields.skills = skills;
+    if (location !== undefined) updateFields.location = location;
+    if (bio !== undefined) updateFields.bio = bio;
+    if (dateOfBirth) updateFields.dateOfBirth = dateOfBirth;
+    if (gender) updateFields.gender = gender;
+    if (nationality) updateFields.nationality = nationality;
+    if (languages) updateFields.languages = languages;
+    if (workAuthorization) updateFields.workAuthorization = workAuthorization;
+    if (salaryExpectation) updateFields.salaryExpectation = salaryExpectation;
+    if (availability) updateFields.availability = availability;
+    if (links) updateFields.links = links;
+    if (parsedSkills) updateFields.skills = parsedSkills;
     if (experience !== undefined) updateFields.experience = experience;
+    if (education !== undefined) updateFields.education = education;
     if (preferences) updateFields.preferences = preferences;
-    if (resumes) updateFields.resumes = resumes;
-    if (coverLetters) updateFields.coverLetters = coverLetters;
     if (goals) updateFields.goals = goals;
 
     const user = await User.findByIdAndUpdate(
@@ -48,6 +85,7 @@ const updateProfile = async (req, res) => {
       { new: true, runValidators: true }
     ).select('-password');
 
+    
     res.json(user);
   } catch (error) {
     console.error('Update profile error:', error);
@@ -55,74 +93,57 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Add resume
-const addResume = async (req, res) => {
+// Upload resume
+const uploadResume = async (req, res) => {
   try {
-    const { title, content, isPrimary } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-    if (!title || !content) {
-      return res.status(400).json({ message: 'Title and content are required' });
+    const { title, targetRole, isPrimary } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ message: 'Resume title is required' });
     }
 
     // If setting as primary, remove primary from others
-    if (isPrimary) {
+    if (isPrimary === 'true' || isPrimary === true) {
       await User.findByIdAndUpdate(req.user.id, {
         $set: { 'resumes.$[].isPrimary': false }
       });
     }
 
+    const resume = {
+      _id: new mongoose.Types.ObjectId(),
+      title,
+      fileName: req.file.originalname,
+      fileSize: `${Math.round(req.file.size / 1024)} KB`,
+      filePath: `/uploads/resumes/${req.file.filename}`,
+      targetRole: targetRole || 'General',
+      uploadedAt: new Date(),
+      isPrimary: isPrimary === 'true' || isPrimary === true
+    };
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      {
-        $push: {
-          resumes: {
-            title,
-            content,
-            uploadedAt: new Date(),
-            isPrimary: isPrimary || false
-          }
-        }
-      },
+      { $push: { resumes: resume } },
       { new: true }
     ).select('-password');
 
-    res.json(user);
+    res.json(resume);
   } catch (error) {
-    console.error('Add resume error:', error);
+    console.error('Upload resume error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Update resume
-const updateResume = async (req, res) => {
+// Get resumes
+const getResumes = async (req, res) => {
   try {
-    const { resumeId, title, content, isPrimary } = req.body;
-
-    if (!resumeId) {
-      return res.status(400).json({ message: 'Resume ID is required' });
-    }
-
-    if (isPrimary) {
-      await User.findByIdAndUpdate(req.user.id, {
-        $set: { 'resumes.$[].isPrimary': false }
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        $set: {
-          'resumes.$[elem].title': title,
-          'resumes.$[elem].content': content,
-          'resumes.$[elem].isPrimary': isPrimary || false
-        }
-      },
-      { new: true, arrayFilters: [{ 'elem._id': resumeId }] }
-    ).select('-password');
-
-    res.json(user);
+    const user = await User.findById(req.user.id).select('resumes');
+    res.json(user.resumes || []);
   } catch (error) {
-    console.error('Update resume error:', error);
+    console.error('Get resumes error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -130,7 +151,7 @@ const updateResume = async (req, res) => {
 // Delete resume
 const deleteResume = async (req, res) => {
   try {
-    const { resumeId } = req.body;
+    const { id: resumeId } = req.params;
 
     if (!resumeId) {
       return res.status(400).json({ message: 'Resume ID is required' });
@@ -142,7 +163,7 @@ const deleteResume = async (req, res) => {
       { new: true }
     ).select('-password');
 
-    res.json(user);
+    res.json({ message: 'Resume deleted successfully' });
   } catch (error) {
     console.error('Delete resume error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -152,30 +173,41 @@ const deleteResume = async (req, res) => {
 // Add cover letter
 const addCoverLetter = async (req, res) => {
   try {
-    const { title, content, relatedJob } = req.body;
+    const { title, content, jobPosition, company } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ message: 'Title and content are required' });
     }
 
+    const coverLetter = {
+      _id: new mongoose.Types.ObjectId(),
+      title,
+      content,
+      jobPosition: jobPosition || '',
+      company: company || '',
+      createdAt: new Date()
+    };
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      {
-        $push: {
-          coverLetters: {
-            title,
-            content,
-            createdAt: new Date(),
-            relatedJob: relatedJob || null
-          }
-        }
-      },
+      { $push: { coverLetters: coverLetter } },
       { new: true }
     ).select('-password');
 
-    res.json(user);
+    res.json(coverLetter);
   } catch (error) {
     console.error('Add cover letter error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get cover letters
+const getCoverLetters = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('coverLetters');
+    res.json(user.coverLetters || []);
+  } catch (error) {
+    console.error('Get cover letters error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -183,7 +215,7 @@ const addCoverLetter = async (req, res) => {
 // Delete cover letter
 const deleteCoverLetter = async (req, res) => {
   try {
-    const { coverLetterId } = req.body;
+    const { id: coverLetterId } = req.params;
 
     if (!coverLetterId) {
       return res.status(400).json({ message: 'Cover letter ID is required' });
@@ -195,7 +227,7 @@ const deleteCoverLetter = async (req, res) => {
       { new: true }
     ).select('-password');
 
-    res.json(user);
+    res.json({ message: 'Cover letter deleted successfully' });
   } catch (error) {
     console.error('Delete cover letter error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -303,22 +335,12 @@ const setGoals = async (req, res) => {
 
 module.exports = {
   getProfile,
-  updateProfile: [
-    body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-    body('phone').optional().isLength({ min: 10 }).withMessage('Phone must be at least 10 characters'),
-    body('skills').optional().isArray().withMessage('Skills must be an array'),
-    body('preferences').optional().isObject().withMessage('Preferences must be an object'),
-    body('resumes').optional().isArray().withMessage('Resumes must be an array'),
-    body('coverLetters').optional().isArray().withMessage('Cover letters must be an array'),
-    updateProfile,
-  ],
-  addResume,
-  updateResume,
+  updateProfile,
+  uploadResume,
+  getResumes,
   deleteResume,
   addCoverLetter,
+  getCoverLetters,
   deleteCoverLetter,
-  addSkill,
-  endorseSkill,
-  deleteSkill,
   setGoals
 };

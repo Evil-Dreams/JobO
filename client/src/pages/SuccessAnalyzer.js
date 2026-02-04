@@ -13,7 +13,6 @@ import {
   CircularProgress,
   Alert,
   Divider,
-  LinearProgress,
   Chip,
   List,
   ListItem,
@@ -30,40 +29,20 @@ import {
   Star,
   Lightbulb,
 } from '@mui/icons-material';
-import { analyzeSuccessProbability } from '../store/aiSlice';
+import { predictSuccess } from '../store/aiSlice';
 import ProfessionalLayout from '../components/ProfessionalLayout';
 
 const SuccessAnalyzer = () => {
   const dispatch = useDispatch();
   const { applications } = useSelector((state) => state.applications);
-  const { user } = useSelector((state) => state.auth);
-  const { successAnalysis, isLoading, error } = useSelector((state) => state.ai);
+  const { successPrediction, isLoading, error } = useSelector((state) => state.ai);
 
   const [selectedApp, setSelectedApp] = useState('');
-  const [resumeText, setResumeText] = useState('');
-  const [skills, setSkills] = useState('');
-  const [experience, setExperience] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
 
   const handleAnalyze = () => {
-    const application = applications.find((app) => app._id === selectedApp);
-    if (application) {
-      const profileData = {
-        name: user?.name || 'Candidate',
-        email: user?.email || '',
-        skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
-        experience: experience,
-        resume: resumeText,
-      };
-
-      const jobDescription = `
-        Company: ${application.company}
-        Position: ${application.position}
-        Job Description: ${application.jobDescription || 'Not provided'}
-        Location: ${application.location || 'Not specified'}
-      `;
-
-      dispatch(analyzeSuccessProbability({ profileData, jobDescription }));
-    }
+    if (!selectedApp || !jobDescription.trim()) return;
+    dispatch(predictSuccess({ applicationId: selectedApp, jobDescription }));
   };
 
   const getScoreColor = (score) => {
@@ -83,8 +62,8 @@ const SuccessAnalyzer = () => {
 
   return (
     <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="xl">
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <Box sx={{ mb: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
@@ -113,9 +92,9 @@ const SuccessAnalyzer = () => {
             </Box>
           </Box>
 
-          <Grid container spacing={4}>
+          <Grid container spacing={4} sx={{ flex: 1 }}>
             {/* Input Section */}
-            <Grid item xs={12} lg={5}>
+            <Grid item xs={12} lg={5} sx={{ display: 'flex' }}>
               <Card sx={{ height: '100%' }}>
                 <CardContent sx={{ p: 4 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -148,31 +127,12 @@ const SuccessAnalyzer = () => {
 
                   <TextField
                     fullWidth
-                    label="Your Skills"
-                    value={skills}
-                    onChange={(e) => setSkills(e.target.value)}
-                    placeholder="e.g., JavaScript, React, Node.js, Python"
-                    helperText="Comma-separated list of your key skills"
-                    sx={{ mb: 3 }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Years of Experience"
-                    value={experience}
-                    onChange={(e) => setExperience(e.target.value)}
-                    placeholder="e.g., 3 years in software development"
-                    sx={{ mb: 3 }}
-                  />
-
-                  <TextField
-                    fullWidth
                     multiline
                     rows={6}
-                    label="Resume Summary (Optional)"
-                    value={resumeText}
-                    onChange={(e) => setResumeText(e.target.value)}
-                    placeholder="Paste key highlights from your resume..."
+                    label="Job Description"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste the job description here..."
                     sx={{ mb: 3 }}
                   />
 
@@ -182,7 +142,7 @@ const SuccessAnalyzer = () => {
                     size="large"
                     startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <AutoAwesome />}
                     onClick={handleAnalyze}
-                    disabled={!selectedApp || isLoading}
+                    disabled={!selectedApp || !jobDescription.trim() || isLoading}
                     sx={{
                       py: 1.5,
                       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -201,9 +161,9 @@ const SuccessAnalyzer = () => {
             </Grid>
 
             {/* Results Section */}
-            <Grid item xs={12} lg={7}>
-              {successAnalysis?.analysis || successAnalysis?.successProbability ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Grid item xs={12} lg={7} sx={{ display: 'flex' }}>
+              {successPrediction?.successProbability ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
                   {/* Score Card */}
                   <Card
                     sx={{
@@ -221,8 +181,8 @@ const SuccessAnalyzer = () => {
                                 height: 160,
                                 borderRadius: '50%',
                                 background: `conic-gradient(${getScoreColor(
-                                  (successAnalysis.analysis || successAnalysis).successProbability
-                                )} ${parseInt((successAnalysis.analysis || successAnalysis).successProbability) * 3.6}deg, rgba(255,255,255,0.2) 0deg)`,
+                                  successPrediction.successProbability
+                                )} ${parseInt(successPrediction.successProbability) * 3.6}deg, rgba(255,255,255,0.2) 0deg)`,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -243,7 +203,7 @@ const SuccessAnalyzer = () => {
                                 }}
                               >
                                 <Typography variant="h2" sx={{ fontWeight: 700 }}>
-                                  {(successAnalysis.analysis || successAnalysis).successProbability}
+                                  {successPrediction.successProbability}
                                 </Typography>
                                 <Typography variant="body2" sx={{ opacity: 0.8 }}>
                                   Match Score
@@ -252,9 +212,9 @@ const SuccessAnalyzer = () => {
                             </Box>
                             <Chip
                               icon={<Star sx={{ color: '#fff !important' }} />}
-                              label={getScoreLabel((successAnalysis.analysis || successAnalysis).successProbability)}
+                              label={getScoreLabel(successPrediction.successProbability)}
                               sx={{
-                                bgcolor: getScoreColor((successAnalysis.analysis || successAnalysis).successProbability),
+                                bgcolor: getScoreColor(successPrediction.successProbability),
                                 color: '#fff',
                                 fontWeight: 600,
                                 px: 1,
@@ -264,40 +224,33 @@ const SuccessAnalyzer = () => {
                         </Grid>
                         <Grid item xs={12} md={7}>
                           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                            Alignment Score
+                            Confidence & Timeline
                           </Typography>
-                          <Box sx={{ mb: 3 }}>
+                          <Box sx={{ mb: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="body2">Profile-Job Alignment</Typography>
+                              <Typography variant="body2">Confidence Level</Typography>
                               <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {(successAnalysis.analysis || successAnalysis).alignmentScore}/10
+                                {successPrediction.confidenceLevel || 'N/A'}
                               </Typography>
                             </Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={(parseInt((successAnalysis.analysis || successAnalysis).alignmentScore) || 7) * 10}
-                              sx={{
-                                height: 10,
-                                borderRadius: 5,
-                                bgcolor: 'rgba(255,255,255,0.2)',
-                                '& .MuiLinearProgress-bar': {
-                                  bgcolor: '#10b981',
-                                  borderRadius: 5,
-                                },
-                              }}
-                            />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="body2">Estimated Timeline</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {successPrediction.timelineEstimate || 'N/A'}
+                              </Typography>
+                            </Box>
                           </Box>
 
-                          {(successAnalysis.analysis || successAnalysis).keyMatches?.length > 0 && (
+                          {successPrediction.positiveFactors?.length > 0 && (
                             <Box>
                               <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 500 }}>
-                                Key Matching Points
+                                Positive Factors
                               </Typography>
                               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                {(successAnalysis.analysis || successAnalysis).keyMatches.slice(0, 4).map((match, idx) => (
+                                {successPrediction.positiveFactors.slice(0, 4).map((factor, idx) => (
                                   <Chip
                                     key={idx}
-                                    label={match}
+                                    label={factor}
                                     size="small"
                                     sx={{
                                       bgcolor: 'rgba(255,255,255,0.2)',
@@ -325,7 +278,7 @@ const SuccessAnalyzer = () => {
                             </Typography>
                           </Box>
                           <List dense>
-                            {(successAnalysis.analysis || successAnalysis).strengths?.map((strength, idx) => (
+                            {successPrediction.positiveFactors?.map((strength, idx) => (
                               <ListItem key={idx} sx={{ px: 0 }}>
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                   <CheckCircle sx={{ color: '#10b981', fontSize: 18 }} />
@@ -347,7 +300,7 @@ const SuccessAnalyzer = () => {
                             </Typography>
                           </Box>
                           <List dense>
-                            {(successAnalysis.analysis || successAnalysis).weaknesses?.map((weakness, idx) => (
+                            {successPrediction.riskFactors?.map((weakness, idx) => (
                               <ListItem key={idx} sx={{ px: 0 }}>
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                   <Warning sx={{ color: '#f59e0b', fontSize: 18 }} />
@@ -371,7 +324,7 @@ const SuccessAnalyzer = () => {
                         </Typography>
                       </Box>
                       <List dense>
-                        {(successAnalysis.analysis || successAnalysis).recommendations?.map((rec, idx) => (
+                        {successPrediction.recommendations?.map((rec, idx) => (
                           <ListItem key={idx} sx={{ px: 0 }}>
                             <ListItemIcon sx={{ minWidth: 32 }}>
                               <TipsAndUpdates sx={{ color: '#6366f1', fontSize: 18 }} />
@@ -382,6 +335,36 @@ const SuccessAnalyzer = () => {
                       </List>
                     </CardContent>
                   </Card>
+
+                  {(successPrediction.competitorAnalysis || successPrediction.nextSteps?.length > 0) && (
+                    <Card>
+                      <CardContent sx={{ p: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                          <Lightbulb sx={{ color: '#0ea5e9' }} />
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            Competitive Insight & Next Steps
+                          </Typography>
+                        </Box>
+                        {successPrediction.competitorAnalysis && (
+                          <Typography variant="body2" sx={{ color: '#475569', mb: 2 }}>
+                            {successPrediction.competitorAnalysis}
+                          </Typography>
+                        )}
+                        {successPrediction.nextSteps?.length > 0 && (
+                          <List dense>
+                            {successPrediction.nextSteps.map((step, idx) => (
+                              <ListItem key={idx} sx={{ px: 0 }}>
+                                <ListItemIcon sx={{ minWidth: 32 }}>
+                                  <TipsAndUpdates sx={{ color: '#0ea5e9', fontSize: 18 }} />
+                                </ListItemIcon>
+                                <ListItemText primary={step} />
+                              </ListItem>
+                            ))}
+                          </List>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </Box>
               ) : (
                 <Card sx={{ height: '100%', minHeight: 400 }}>

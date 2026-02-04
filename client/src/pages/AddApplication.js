@@ -9,7 +9,6 @@ import {
   Typography,
   TextField,
   Button,
-  Grid,
   MenuItem,
   InputAdornment,
 } from '@mui/material';
@@ -33,10 +32,10 @@ const AddApplication = () => {
 
   const [formData, setFormData] = useState({
     company: '',
-    position: '',
+    title: '',
     location: '',
-    salary: '',
-    jobUrl: '',
+    salaryRange: '',
+    sourceLink: '',
     status: 'Applied',
     notes: '',
     dateApplied: new Date().toISOString().split('T')[0],
@@ -62,214 +61,248 @@ const AddApplication = () => {
 
   return (
     <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="md">
+      <Box sx={{ 
+        p: { xs: 1, md: 1.5 }, 
+        height: 'calc(100vh - 100px)', 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: 1, flexShrink: 0 }}>
             <Button
               startIcon={<ArrowBack />}
               onClick={() => navigate('/applications')}
-              sx={{ mb: 2, color: '#94a3b8' }}
+              sx={{ mb: 0.5, color: '#94a3b8', fontSize: '0.875rem' }}
             >
-              Back to Applications
+              Back
             </Button>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc' }}>
-              Add New Application
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#f8fafc', fontSize: '1.125rem' }}>
+              Add Application
             </Typography>
-            <Typography variant="body1" sx={{ color: '#94a3b8' }}>
+            <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.75rem' }}>
               Track a new job application
             </Typography>
           </Box>
 
-          {/* Form */}
+          {/* Form - Takes remaining space */}
           <Card sx={{
             background: 'rgba(30, 41, 59, 0.5)',
             backdropFilter: 'blur(12px)',
             border: '1px solid rgba(148, 163, 184, 0.1)',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
-            <CardContent sx={{ p: 4 }}>
+            <CardContent sx={{ 
+              p: 1.5, 
+              flex: 1, 
+              overflowY: 'auto',
+              '&::-webkit-scrollbar': {
+                width: '4px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'rgba(148, 163, 184, 0.1)',
+                borderRadius: '2px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(148, 163, 184, 0.3)',
+                borderRadius: '2px',
+              }
+            }}>
               <form onSubmit={handleSubmit}>
-                <Grid container spacing={3}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {/* Company */}
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Company Name"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleChange}
-                      required
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Business sx={{ color: '#94a3b8' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Company"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                          <Business sx={{ color: '#94a3b8', fontSize: '1rem' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
+                  />
 
                   {/* Position */}
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Position / Job Title"
-                      name="position"
-                      value={formData.position}
-                      onChange={handleChange}
-                      required
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Work sx={{ color: '#94a3b8' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Position / Job Title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                          <Work sx={{ color: '#94a3b8', fontSize: '1rem' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
+                  />
 
-                  {/* Location */}
-                  <Grid item xs={12} md={6}>
+                  {/* Location and Salary */}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
                     <TextField
                       fullWidth
+                      size="small"
                       label="Location"
                       name="location"
                       value={formData.location}
                       onChange={handleChange}
-                      placeholder="e.g., New York, NY or Remote"
+                      placeholder="e.g., New York, NY"
                       InputProps={{
                         startAdornment: (
-                          <InputAdornment position="start">
-                            <LocationOn sx={{ color: '#94a3b8' }} />
+                          <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                            <LocationOn sx={{ color: '#94a3b8', fontSize: '1rem' }} />
                           </InputAdornment>
                         ),
                       }}
+                      sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
                     />
-                  </Grid>
-
-                  {/* Salary */}
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
+                      size="small"
                       label="Salary Range"
-                      name="salary"
-                      value={formData.salary}
+                      name="salaryRange"
+                      value={formData.salaryRange}
                       onChange={handleChange}
-                      placeholder="e.g., $100,000 - $120,000"
+                      placeholder="e.g., $100k"
                       InputProps={{
                         startAdornment: (
-                          <InputAdornment position="start">
-                            <AttachMoney sx={{ color: '#94a3b8' }} />
+                          <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                            <AttachMoney sx={{ color: '#94a3b8', fontSize: '1rem' }} />
                           </InputAdornment>
                         ),
                       }}
+                      sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* Job URL */}
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Job Posting URL"
-                      name="jobUrl"
-                      value={formData.jobUrl}
-                      onChange={handleChange}
-                      placeholder="https://..."
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Link sx={{ color: '#94a3b8' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Job Posting URL"
+                    name="sourceLink"
+                    value={formData.sourceLink}
+                    onChange={handleChange}
+                    placeholder="https://example.com/job"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                          <Link sx={{ color: '#94a3b8', fontSize: '1rem' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
+                  />
 
-                  {/* Status & Date */}
-                  <Grid item xs={12} md={6}>
+                  {/* Status and Date */}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
                     <TextField
                       fullWidth
+                      size="small"
                       select
                       label="Status"
                       name="status"
                       value={formData.status}
                       onChange={handleChange}
+                      sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
                     >
                       {statusOptions.map((status) => (
-                        <MenuItem key={status} value={status}>
+                        <MenuItem key={status} value={status} sx={{ fontSize: '0.875rem' }}>
                           {status}
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
-                      label="Date Applied"
+                      size="small"
+                      label="Date"
                       name="dateApplied"
                       type="date"
                       value={formData.dateApplied}
                       onChange={handleChange}
                       InputLabelProps={{ shrink: true }}
+                      sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* Notes */}
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Notes"
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleChange}
-                      multiline
-                      rows={4}
-                      placeholder="Add any notes about this application..."
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                            <Notes sx={{ color: '#94a3b8' }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </Grid>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleChange}
+                    multiline
+                    rows={2}
+                    placeholder="Add notes..."
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1, mr: 0.5 }}>
+                          <Notes sx={{ color: '#94a3b8', fontSize: '1rem' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ '& .MuiInputLabel-root': { fontSize: '0.875rem' } }}
+                  />
 
                   {/* Actions */}
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-                      <Button 
-                        variant="outlined" 
-                        onClick={() => navigate('/applications')}
-                        sx={{ 
-                          borderColor: 'rgba(148, 163, 184, 0.3)',
-                          color: '#94a3b8',
-                          '&:hover': {
-                            borderColor: 'rgba(148, 163, 184, 0.5)',
-                            bgcolor: 'rgba(148, 163, 184, 0.1)',
-                          },
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        startIcon={<Save />}
-                        disabled={isSubmitting || !formData.company || !formData.position}
-                        sx={{
-                          background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #0891b2 0%, #0d9488 100%)',
-                          },
-                        }}
-                      >
-                        {isSubmitting ? 'Saving...' : 'Save Application'}
-                      </Button>
-                    </Box>
-                  </Grid>
-                </Grid>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 1, 
+                    justifyContent: 'flex-end', 
+                    mt: 1,
+                    flexShrink: 0
+                  }}>
+                    <Button 
+                      variant="outlined" 
+                      onClick={() => navigate('/applications')}
+                      sx={{ 
+                        borderColor: 'rgba(148, 163, 184, 0.3)',
+                        color: '#94a3b8',
+                        fontSize: '0.875rem',
+                        py: 0.5,
+                        '&:hover': {
+                          borderColor: 'rgba(148, 163, 184, 0.5)',
+                          bgcolor: 'rgba(148, 163, 184, 0.1)',
+                        },
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      startIcon={<Save />}
+                      disabled={isSubmitting || !formData.company || !formData.title}
+                      sx={{
+                        background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
+                        fontSize: '0.875rem',
+                        py: 0.5,
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #0891b2 0%, #0d9488 100%)',
+                        },
+                      }}
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save'}
+                    </Button>
+                  </Box>
+                </Box>
               </form>
             </CardContent>
           </Card>

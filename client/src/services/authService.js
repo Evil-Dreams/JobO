@@ -15,10 +15,16 @@ const logout = () => {
   localStorage.removeItem('user');
 };
 
+const updateProfile = async (profileData) => {
+  const response = await api.put('/user/profile', profileData);
+  return response.data;
+};
+
 const authService = {
   register,
   login,
   logout,
+  updateProfile,
 };
 
 export default authService;

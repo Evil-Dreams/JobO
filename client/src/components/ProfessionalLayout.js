@@ -211,13 +211,20 @@ const ProfessionalLayout = ({ children }) => {
             sx={{
               width: 40,
               height: 40,
-              background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
+              background: `url(/iblis_logo.png)`,
               fontSize: '1rem',
               fontWeight: 700,
               mr: 1.5,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
             }}
           >
-            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            <img 
+              src="/iblis_logo.png" 
+              alt="Profile" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.9375rem', color: '#f8fafc' }} noWrap>
@@ -294,12 +301,17 @@ const ProfessionalLayout = ({ children }) => {
                   sx={{ 
                     width: 36, 
                     height: 36, 
-                    background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
-                    fontSize: '0.875rem',
-                    fontWeight: 700,
+                    background: `url(/iblis_logo.png)`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
                   }}
                 >
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  <img 
+                    src="/iblis_logo.png" 
+                    alt="Profile" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 </Avatar>
               </IconButton>
             </Box>
@@ -337,6 +349,9 @@ const ProfessionalLayout = ({ children }) => {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           mt: { xs: '64px', md: 0 },
           minHeight: '100vh',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
           position: 'relative',
           background: 'linear-gradient(135deg, #0f172a 0%, #020617 100%)',
         }}

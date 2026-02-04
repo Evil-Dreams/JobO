@@ -1,164 +1,265 @@
-const { body, validationResult } = require('express-validator');
-const aiService = require('../services/ai.service');
+const {
+  extractTextFromPDF,
+  analyzeResume: analyzeResumeAI,
+  generateCoverLetter: generateCoverLetterAI,
+  predictSuccessProbability,
+  generateApplicationInsights,
+  getInterviewPrep
+} = require('../services/aiService');
+const User = require('../models/User');
+const Application = require('../models/Application');
 
-// Analyze resume
-const analyzeResume = async (req, res) => {
+/**
+ * Analyze resume with PDF extraction (FormData version)
+ */
+const analyzeResumeWithPDF = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    if (!req.file) {
+      return res.status(400).json({ message: 'No PDF file uploaded' });
     }
 
-    const { resumeText, targetRole } = req.body;
+    const { jobDescription, targetRole, jobRole } = req.body;
+    const role = targetRole || jobRole || 'General';
 
-    const analysis = await aiService.analyzeResume(resumeText, targetRole || 'General');
+    if (!jobDescription) {
+      // Allow analysis without job description for basic analysis
+    }
 
-    res.json({ analysis });
+    const resumeText = await extractTextFromPDF(req.file.buffer);
+    const analysis = await analyzeResumeAI(resumeText, jobDescription || '', role);
+
+    res.json({
+      success: true,
+      analysis,
+      extractedText: resumeText.substring(0, 500) + '...'
+    });
   } catch (error) {
     console.error('Resume analysis error:', error);
-    res.status(500).json({ message: 'Server error during resume analysis' });
+    res.status(500).json({ message: error.message || 'Resume analysis failed' });
   }
 };
 
-// Optimize resume
-const optimizeResume = async (req, res) => {
+const analyzeResumeText = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const { resumeText, jobDescription, targetRole } = req.body;
+
+    if (!resumeText || !jobDescription) {
+      return res.status(400).json({ message: 'Resume text and job description are required' });
     }
 
-    const { resumeText, jobDescription } = req.body;
+    const analysis = await analyzeResumeAI(resumeText, jobDescription, targetRole || 'General');
 
-    const optimizedResume = await aiService.optimizeResume(resumeText, jobDescription);
-
-    res.json({ optimizedResume });
+    res.json({
+      success: true,
+      analysis
+    });
   } catch (error) {
-    console.error('Resume optimization error:', error);
-    res.status(500).json({ message: 'Server error during resume optimization' });
+    console.error('Resume analysis error:', error);
+    res.status(500).json({ message: error.message || 'Resume analysis failed' });
   }
 };
 
-// Generate cover letter
-const generateCoverLetter = async (req, res) => {
+const generateCoverLetterHandler = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const { company, position, jobDescription, resumeText } = req.body;
+
+    if (!company || !position || !jobDescription || !resumeText) {
+      return res.status(400).json({
+        message: 'Company, position, job description, and resume text are required'
+      });
     }
 
-    // Support both old format (profileData, jobDescription) and new format (company, position, additionalInfo)
-    const { profileData, jobDescription, company, position, additionalInfo } = req.body;
+    const coverLetter = await generateCoverLetterAI(company, position, jobDescription, resumeText);
 
-    let coverLetter;
-    if (company && position) {
-      // New format from frontend
-      const jobInfo = `Company: ${company}\nPosition: ${position}\n\nAdditional Info: ${additionalInfo || 'None'}`;
-      coverLetter = await aiService.generateCoverLetter(profileData || {}, jobInfo);
-    } else {
-      // Legacy format
-      coverLetter = await aiService.generateCoverLetter(profileData, jobDescription);
+    if (req.user) {
+      await User.findByIdAndUpdate(
+        req.user.id,
+        {
+          $push: {
+            coverLetters: {
+              title: `${company} - ${position}`,
+              content: coverLetter,
+              jobPosition: position,
+              company: company,
+              createdAt: new Date()
+            }
+          }
+        },
+        { new: true }
+      );
     }
 
-    res.json({ coverLetter });
+    res.json({
+      success: true,
+      coverLetter,
+      saved: !!req.user
+    });
   } catch (error) {
     console.error('Cover letter generation error:', error);
-    res.status(500).json({ message: 'Server error during cover letter generation' });
+    res.status(500).json({ message: error.message || 'Cover letter generation failed' });
   }
 };
 
-// Predict interview questions
-const predictInterviewQuestions = async (req, res) => {
+/**
+ * Generate cover letter with PDF (FormData version)
+ */
+const generateCoverLetterPDF = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    if (!req.file) {
+      return res.status(400).json({ message: 'No PDF file uploaded' });
     }
 
-    // Support both old format (jobDescription) and new format (company, role, questionType)
-    const { jobDescription, company, role, questionType } = req.body;
+    const { jobDescription, jobRole } = req.body;
+    const role = jobRole || 'Software Engineer';
 
-    let jobInfo;
-    if (company || role) {
-      // New format from frontend
-      jobInfo = `Company: ${company || 'Not specified'}\nPosition: ${role || 'Not specified'}\nQuestion Type: ${questionType || 'behavioral'}`;
-    } else {
-      jobInfo = jobDescription;
+    if (!jobDescription) {
+      return res.status(400).json({ message: 'Job description is required' });
     }
 
-    const questions = await aiService.predictInterviewQuestions(jobInfo, questionType);
+    // Extract text from PDF
+    const resumeText = await extractTextFromPDF(req.file.buffer);
+    
+    // Generate cover letter using extracted text
+    const company = 'Company'; // Default company name
+    const position = role;
+    const coverLetter = await generateCoverLetterAI(company, position, jobDescription, resumeText);
 
-    res.json({ questions });
+    res.json({
+      success: true,
+      coverLetter,
+      content: coverLetter,
+      pdfData: null // We're not generating PDF, just text content
+    });
   } catch (error) {
-    console.error('Interview questions prediction error:', error);
-    res.status(500).json({ message: 'Server error during interview questions prediction' });
+    console.error('Cover letter generation error:', error);
+    res.status(500).json({ message: error.message || 'Cover letter generation failed' });
   }
 };
 
-// Analyze success probability
-const analyzeSuccessProbability = async (req, res) => {
+const predictSuccess = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const { applicationId, jobDescription } = req.body;
+
+    if (!applicationId || !jobDescription) {
+      return res.status(400).json({ message: 'Application ID and job description are required' });
     }
 
-    const { profileData, jobDescription } = req.body;
+    const user = await User.findById(req.user.id).select('-password');
+    const application = await Application.findById(applicationId);
 
-    const analysis = await aiService.analyzeSuccessProbability(profileData, jobDescription);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
 
-    res.json({ analysis });
+    const applications = await Application.find({ userId: req.user.id }).lean();
+
+    const userProfile = {
+      name: user.name,
+      headline: user.headline,
+      experience: user.experience,
+      education: user.education,
+      skills: user.skills,
+      location: user.location
+    };
+
+    const prediction = await predictSuccessProbability(
+      userProfile,
+      jobDescription,
+      applications
+    );
+
+    application.successProbability = prediction.successProbability;
+    application.successAnalysis = JSON.stringify(prediction);
+    await application.save();
+
+    res.json({
+      success: true,
+      prediction,
+      applicationUpdated: true
+    });
   } catch (error) {
-    console.error('Success probability analysis error:', error);
-    res.status(500).json({ message: 'Server error during success probability analysis' });
+    console.error('Success prediction error:', error);
+    res.status(500).json({ message: error.message || 'Success prediction failed' });
   }
 };
 
-// Get interview feedback
-const getInterviewFeedback = async (req, res) => {
+const getApplicationInsightsHandler = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const user = await User.findById(req.user.id).select('-password');
+    const applications = await Application.find({ userId: req.user.id }).lean();
+
+    if (applications.length === 0) {
+      return res.json({
+        success: true,
+        insights: {
+          message: 'No applications yet. Start applying to get insights!'
+        }
+      });
     }
 
-    const { question, answer, role } = req.body;
+    const userProfile = {
+      name: user.name,
+      headline: user.headline,
+      experience: user.experience,
+      education: user.education,
+      skills: user.skills,
+      location: user.location,
+      preferences: user.preferences
+    };
 
-    const feedback = await aiService.getInterviewFeedback(question, answer, role);
+    const insights = await generateApplicationInsights(applications, userProfile);
 
-    res.json({ feedback });
+    res.json({
+      success: true,
+      insights,
+      applicationCount: applications.length,
+      stats: {
+        applied: applications.length,
+        interviews: applications.filter(a => a.status === 'Interview Scheduled' || a.status === 'Interview Completed').length,
+        offers: applications.filter(a => a.status === 'Offer Received').length
+      }
+    });
   } catch (error) {
-    console.error('Interview feedback error:', error);
-    res.status(500).json({ message: 'Server error during interview feedback' });
+    console.error('Application insights error:', error);
+    res.status(500).json({ message: error.message || 'Insights generation failed' });
+  }
+};
+
+const getInterviewGuidance = async (req, res) => {
+  try {
+    const { company, jobDescription } = req.body;
+
+    if (!company || !jobDescription) {
+      return res.status(400).json({ message: 'Company and job description are required' });
+    }
+
+    const user = await User.findById(req.user.id).select('-password');
+
+    const userProfile = {
+      name: user.name,
+      experience: user.experience,
+      education: user.education,
+      skills: user.skills
+    };
+
+    const guidance = await getInterviewPrep(jobDescription, company, userProfile);
+
+    res.json({
+      success: true,
+      guidance
+    });
+  } catch (error) {
+    console.error('Interview guidance error:', error);
+    res.status(500).json({ message: error.message || 'Interview guidance generation failed' });
   }
 };
 
 module.exports = {
-  analyzeResume: [
-    body('resumeText').notEmpty().withMessage('Resume text is required'),
-    analyzeResume,
-  ],
-  optimizeResume: [
-    body('resumeText').notEmpty().withMessage('Resume text is required'),
-    body('jobDescription').notEmpty().withMessage('Job description is required'),
-    optimizeResume,
-  ],
-  generateCoverLetter: [
-    // Allow either format
-    generateCoverLetter,
-  ],
-  predictInterviewQuestions: [
-    // Allow either format
-    predictInterviewQuestions,
-  ],
-  analyzeSuccessProbability: [
-    body('profileData').notEmpty().withMessage('Profile data is required'),
-    body('jobDescription').notEmpty().withMessage('Job description is required'),
-    analyzeSuccessProbability,
-  ],
-  getInterviewFeedback: [
-    body('question').notEmpty().withMessage('Question is required'),
-    body('answer').notEmpty().withMessage('Answer is required'),
-    getInterviewFeedback,
-  ],
+  analyzeResumeWithPDF,
+  analyzeResumeText,
+  generateCoverLetterHandler,
+  generateCoverLetterPDF,
+  predictSuccess,
+  getApplicationInsightsHandler,
+  getInterviewGuidance
 };

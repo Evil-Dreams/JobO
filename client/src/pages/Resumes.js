@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Container,
@@ -17,51 +18,39 @@ import {
   Menu,
   MenuItem,
   LinearProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   MoreVert,
   Download,
   Delete,
   Star,
-  StarBorder,
   CloudUpload,
-  InsertDriveFile,
   PictureAsPdf,
 } from '@mui/icons-material';
 import ProfessionalLayout from '../components/ProfessionalLayout';
+import { uploadResume, getResumes, deleteResume } from '../store/userSlice';
 
 const Resumes = () => {
   const fileInputRef = useRef(null);
-  const [resumes, setResumes] = useState([
-    {
-      id: 1,
-      name: 'Software Engineer Resume',
-      fileName: 'resume_swe.pdf',
-      fileType: 'pdf',
-      fileSize: '245 KB',
-      targetRole: 'Software Engineer',
-      uploadDate: '2026-01-15',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      name: 'Frontend Developer Resume',
-      fileName: 'frontend_resume.docx',
-      fileType: 'docx',
-      fileSize: '189 KB',
-      targetRole: 'Frontend Developer',
-      uploadDate: '2026-01-10',
-      isDefault: false,
-    },
-  ]);
+  const dispatch = useDispatch();
+  const { resumes, isLoading } = useSelector(state => state.user);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [resumeName, setResumeName] = useState('');
   const [targetRole, setTargetRole] = useState('');
+  const [isPrimary, setIsPrimary] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedResume, setSelectedResume] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    dispatch(getResumes());
+  }, [dispatch]);
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -72,73 +61,115 @@ const Resumes = () => {
         setResumeName(file.name.replace(/\.[^/.]+$/, ''));
         setOpenDialog(true);
       } else {
-        alert('Please upload a PDF or DOCX file');
+        setErrorMessage('Please upload a PDF or DOCX file');
       }
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !resumeName) return;
+    if (!selectedFile || !resumeName) {
+      setErrorMessage('Resume name is required');
+      return;
+    }
 
     setUploading(true);
+    try {
+      await dispatch(uploadResume({
+        resumeFile: selectedFile,
+        metadata: {
+          title: resumeName,
+          targetRole: targetRole || 'General',
+          isPrimary: isPrimary
+        }
+      })).unwrap();
 
-    // Simulate upload delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const newResume = {
-      id: Date.now(),
-      name: resumeName,
-      fileName: selectedFile.name,
-      fileType: selectedFile.name.endsWith('.pdf') ? 'pdf' : 'docx',
-      fileSize: `${Math.round(selectedFile.size / 1024)} KB`,
-      targetRole: targetRole || 'General',
-      uploadDate: new Date().toISOString().split('T')[0],
-      isDefault: resumes.length === 0,
-    };
-
-    setResumes([newResume, ...resumes]);
-    setUploading(false);
-    setOpenDialog(false);
-    setSelectedFile(null);
-    setResumeName('');
-    setTargetRole('');
+      setSuccessMessage('Resume uploaded successfully!');
+      setOpenDialog(false);
+      setResumeName('');
+      setTargetRole('');
+      setIsPrimary(false);
+      setSelectedFile(null);
+    } catch (err) {
+      setErrorMessage(err || 'Failed to upload resume');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleMenuOpen = (e, resume) => {
-    e.stopPropagation();
-    setAnchorEl(e.currentTarget);
+  const handleDelete = async (resumeId) => {
+    try {
+      await dispatch(deleteResume(resumeId)).unwrap();
+      setSuccessMessage('Resume deleted successfully!');
+      setAnchorEl(null);
+    } catch (err) {
+      setErrorMessage(err || 'Failed to delete resume');
+    }
+  };
+
+  const handleDownload = (resume) => {
+    const link = document.createElement('a');
+    link.href = resume.filePath;
+    link.download = resume.fileName;
+    link.click();
+  };
+
+  const handleMenuOpen = (event, resume) => {
+    setAnchorEl(event.currentTarget);
     setSelectedResume(resume);
   };
 
-  const handleSetDefault = () => {
-    setResumes(resumes.map((r) => ({ ...r, isDefault: r.id === selectedResume?.id })));
+  const handleMenuClose = () => {
     setAnchorEl(null);
+    setSelectedResume(null);
   };
 
-  const handleDelete = () => {
-    setResumes(resumes.filter((r) => r.id !== selectedResume?.id));
-    setAnchorEl(null);
-  };
-
-  const getFileIcon = (type) => {
-    if (type === 'pdf') {
-      return <PictureAsPdf sx={{ fontSize: 32, color: '#ef4444' }} />;
-    }
-    return <InsertDriveFile sx={{ fontSize: 32, color: '#3b82f6' }} />;
-  };
+  if (isLoading && resumes.length === 0) {
+    return (
+      <ProfessionalLayout>
+        <Box sx={{ p: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <LinearProgress sx={{ width: '50%' }} />
+        </Box>
+      </ProfessionalLayout>
+    );
+  }
 
   return (
     <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="xl" disableGutters>
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: '100vh' }}>
+        <Container maxWidth="lg">
           {/* Header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                }}
+              >
+                <PictureAsPdf sx={{ fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc' }}>
+                  Resumes
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                  Manage your resumes for different job roles
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Upload Button */}
+          <Box sx={{ mb: 4, display: 'flex', gap: 2, justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc', mb: 0.5 }}>
-                My Resumes
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#94a3b8' }}>
-                Upload and manage your resume files (PDF, DOCX)
+              <Typography variant="body2" sx={{ color: '#94a3b8', mb: 1 }}>
+                {resumes?.length || 0} resume(s) uploaded
               </Typography>
             </Box>
             <Button
@@ -146,243 +177,215 @@ const Resumes = () => {
               startIcon={<CloudUpload />}
               onClick={() => fileInputRef.current?.click()}
               sx={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0891b2 0%, #0d9488 100%)',
-                },
+                background: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+                '&:hover': { background: 'linear-gradient(135deg, #2563eb 0%, #0891b2 100%)' }
               }}
             >
               Upload Resume
             </Button>
             <input
-              type="file"
               ref={fileInputRef}
+              type="file"
               hidden
               accept=".pdf,.docx"
               onChange={handleFileSelect}
             />
           </Box>
 
-          {/* Resume Grid */}
+          {/* Resumes Grid */}
           <Grid container spacing={3}>
-            {resumes.map((resume) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={resume.id}>
+            {resumes && resumes.length > 0 ? (
+              resumes.map((resume) => (
+                <Grid item xs={12} sm={6} md={4} key={resume._id}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      background: 'rgba(15, 23, 42, 0.5)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(148, 163, 184, 0.1)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                      },
+                    }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: '#f8fafc', mb: 1 }}>
+                            {resume.title}
+                          </Typography>
+                          <Chip
+                            label={resume.targetRole}
+                            size="small"
+                            sx={{
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              color: '#3b82f6',
+                              mb: 2
+                            }}
+                          />
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, resume)}
+                          sx={{ color: '#64748b' }}
+                        >
+                          <MoreVert fontSize="small" />
+                        </IconButton>
+                      </Box>
+
+                      <Box sx={{ space: 'y-2' }}>
+                        <Typography variant="body2" sx={{ color: '#94a3b8', mb: 1 }}>
+                          <strong>File:</strong> {resume.fileName}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#94a3b8', mb: 1 }}>
+                          <strong>Size:</strong> {resume.fileSize}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#94a3b8', mb: 2 }}>
+                          <strong>Uploaded:</strong> {new Date(resume.uploadedAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+
+                      {resume.isPrimary && (
+                        <Box sx={{ mb: 2 }}>
+                          <Chip
+                            icon={<Star />}
+                            label="Primary"
+                            size="small"
+                            sx={{
+                              background: 'rgba(251, 191, 36, 0.1)',
+                              color: '#fbbf24'
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                        <Button
+                          fullWidth
+                          size="small"
+                          startIcon={<Download />}
+                          onClick={() => handleDownload(resume)}
+                          sx={{
+                            color: '#3b82f6',
+                            borderColor: '#3b82f6',
+                            '&:hover': { background: 'rgba(59, 130, 246, 0.05)' }
+                          }}
+                          variant="outlined"
+                        >
+                          Download
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))
+            ) : (
+              <Grid item xs={12}>
                 <Card
                   sx={{
-                    height: '100%',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer',
-                    background: 'rgba(30, 41, 59, 0.5)',
+                    background: 'rgba(15, 23, 42, 0.5)',
                     backdropFilter: 'blur(12px)',
                     border: '1px solid rgba(148, 163, 184, 0.1)',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 12px 24px rgba(0,0,0,0.3)',
-                      borderColor: 'rgba(6, 182, 212, 0.3)',
-                    },
+                    p: 4,
+                    textAlign: 'center'
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Box
-                        sx={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 2,
-                          bgcolor: resume.fileType === 'pdf' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {getFileIcon(resume.fileType)}
-                      </Box>
-                      <IconButton size="small" onClick={(e) => handleMenuOpen(e, resume)} sx={{ color: '#94a3b8' }}>
-                        <MoreVert />
-                      </IconButton>
-                    </Box>
-
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5, color: '#f8fafc' }} noWrap>
-                      {resume.name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#94a3b8', mb: 2 }} noWrap>
-                      {resume.fileName}
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                      <Chip
-                        label={resume.fileType.toUpperCase()}
-                        size="small"
-                        sx={{
-                          bgcolor: resume.fileType === 'pdf' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                          color: resume.fileType === 'pdf' ? '#f87171' : '#60a5fa',
-                          fontWeight: 500,
-                        }}
-                      />
-                      <Chip 
-                        label={resume.fileSize} 
-                        size="small" 
-                        variant="outlined" 
-                        sx={{ 
-                          borderColor: 'rgba(148, 163, 184, 0.3)', 
-                          color: '#94a3b8' 
-                        }} 
-                      />
-                      {resume.isDefault && (
-                        <Chip
-                          icon={<Star sx={{ fontSize: 14 }} />}
-                          label="Default"
-                          size="small"
-                          sx={{ bgcolor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}
-                        />
-                      )}
-                    </Box>
-
-                    <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 2 }}>
-                      Target: {resume.targetRole} • {resume.uploadDate}
-                    </Typography>
-
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<Download />}
-                      size="small"
-                      sx={{
-                        borderColor: 'rgba(148, 163, 184, 0.3)',
-                        color: '#94a3b8',
-                        '&:hover': {
-                          borderColor: '#06b6d4',
-                          color: '#22d3ee',
-                          bgcolor: 'rgba(6, 182, 212, 0.1)',
-                        },
-                      }}
-                    >
-                      Download
-                    </Button>
-                  </CardContent>
+                  <PictureAsPdf sx={{ fontSize: 64, color: '#64748b', mb: 2 }} />
+                  <Typography variant="h6" sx={{ color: '#94a3b8', mb: 1 }}>
+                    No resumes yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    Upload your first resume to get started
+                  </Typography>
                 </Card>
               </Grid>
-            ))}
-
-            {/* Upload Card */}
-            <Grid item xs={12} sm={6} md={4} lg={3}>
-              <Card
-                onClick={() => fileInputRef.current?.click()}
-                sx={{
-                  height: '100%',
-                  minHeight: 280,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px dashed rgba(148, 163, 184, 0.3)',
-                  bgcolor: 'transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    borderColor: '#06b6d4',
-                    bgcolor: 'rgba(6, 182, 212, 0.05)',
-                  },
-                }}
-              >
-                <Box sx={{ textAlign: 'center', p: 3 }}>
-                  <CloudUpload sx={{ fontSize: 48, color: '#64748b', mb: 2 }} />
-                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#94a3b8', mb: 0.5 }}>
-                    Upload Resume
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    PDF or DOCX (Max 5MB)
-                  </Typography>
-                </Box>
-              </Card>
-            </Grid>
+            )}
           </Grid>
 
-          {/* Menu */}
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-            <MenuItem onClick={handleSetDefault}>
-              <StarBorder sx={{ mr: 1.5, fontSize: 20 }} /> Set as Default
-            </MenuItem>
-            <MenuItem onClick={() => setAnchorEl(null)}>
-              <Download sx={{ mr: 1.5, fontSize: 20 }} /> Download
-            </MenuItem>
-            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-              <Delete sx={{ mr: 1.5, fontSize: 20 }} /> Delete
-            </MenuItem>
-          </Menu>
-
           {/* Upload Dialog */}
-          <Dialog open={openDialog} onClose={() => !uploading && setOpenDialog(false)} maxWidth="sm" fullWidth>
+          <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
             <DialogTitle>Upload Resume</DialogTitle>
-            <DialogContent>
-              {uploading && <LinearProgress sx={{ mb: 2 }} />}
-
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  p: 2,
-                  bgcolor: 'rgba(30, 41, 59, 0.5)',
-                  borderRadius: 2,
-                  mb: 3,
-                  mt: 1,
-                }}
-              >
-                {selectedFile?.name.endsWith('.pdf') ? (
-                  <PictureAsPdf sx={{ fontSize: 40, color: '#f87171' }} />
-                ) : (
-                  <InsertDriveFile sx={{ fontSize: 40, color: '#60a5fa' }} />
-                )}
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#f8fafc' }}>
-                    {selectedFile?.name}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                    {selectedFile && `${Math.round(selectedFile.size / 1024)} KB`}
-                  </Typography>
-                </Box>
-              </Box>
-
+            <DialogContent sx={{ pt: 3, space: 'y-3' }}>
               <TextField
                 fullWidth
                 label="Resume Name"
                 value={resumeName}
                 onChange={(e) => setResumeName(e.target.value)}
+                placeholder="e.g., Frontend Engineer Resume"
+                variant="outlined"
                 sx={{ mb: 2 }}
-                placeholder="e.g., Software Engineer Resume"
               />
-
               <TextField
                 fullWidth
-                label="Target Role (Optional)"
+                label="Target Role"
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value)}
                 placeholder="e.g., Frontend Developer"
+                variant="outlined"
+                sx={{ mb: 2 }}
               />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <input
+                  type="checkbox"
+                  checked={isPrimary}
+                  onChange={(e) => setIsPrimary(e.target.checked)}
+                  id="setPrimary"
+                />
+                <label htmlFor="setPrimary" style={{ color: '#64748b', cursor: 'pointer' }}>
+                  Set as primary resume
+                </label>
+              </Box>
+              {selectedFile && (
+                <Alert severity="info">
+                  Selected: {selectedFile.name}
+                </Alert>
+              )}
             </DialogContent>
-            <DialogActions sx={{ p: 2 }}>
-              <Button 
-                onClick={() => setOpenDialog(false)} 
-                disabled={uploading}
-                sx={{ color: '#94a3b8' }}
-              >
-                Cancel
-              </Button>
+            <DialogActions>
+              <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
               <Button
-                variant="contained"
                 onClick={handleUpload}
-                disabled={uploading || !resumeName}
-                sx={{
-                  background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #0891b2 0%, #0d9488 100%)',
-                  },
-                }}
+                disabled={uploading || !selectedFile}
+                variant="contained"
               >
                 {uploading ? 'Uploading...' : 'Upload'}
               </Button>
             </DialogActions>
           </Dialog>
+
+          {/* Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem
+              onClick={() => {
+                handleDelete(selectedResume._id);
+                handleMenuClose();
+              }}
+            >
+              <Delete fontSize="small" sx={{ mr: 1 }} />
+              Delete
+            </MenuItem>
+          </Menu>
+
+          {/* Snackbars */}
+          <Snackbar
+            open={!!successMessage}
+            autoHideDuration={4000}
+            onClose={() => setSuccessMessage('')}
+            message={successMessage}
+          />
+          <Snackbar
+            open={!!errorMessage}
+            autoHideDuration={4000}
+            onClose={() => setErrorMessage('')}
+          >
+            <Alert severity="error">{errorMessage}</Alert>
+          </Snackbar>
         </Container>
       </Box>
     </ProfessionalLayout>

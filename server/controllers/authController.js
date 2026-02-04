@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 
 // Generate JWT token
@@ -12,11 +11,6 @@ const generateToken = (id) => {
 // Register user
 const register = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { name, email, password } = req.body;
 
     // Check if user exists
@@ -57,11 +51,6 @@ const register = async (req, res) => {
 // Login user
 const login = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password } = req.body;
 
     // Check for user
@@ -99,15 +88,6 @@ const login = async (req, res) => {
 };
 
 module.exports = {
-  register: [
-    body('name').notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    register,
-  ],
-  login: [
-    body('email').isEmail().withMessage('Please provide a valid email'),
-    body('password').notEmpty().withMessage('Password is required'),
-    login,
-  ],
+  register,
+  login,
 };

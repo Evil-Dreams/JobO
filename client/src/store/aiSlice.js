@@ -1,23 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import aiService from '../services/aiService';
+import * as aiService from '../services/aiService';
 
 const initialState = {
   resumeAnalysis: null,
-  optimizedResume: null,
   coverLetter: null,
-  interviewQuestions: null,
-  interviewFeedback: null,
-  successAnalysis: null,
+  successPrediction: null,
+  applicationInsights: null,
+  interviewGuidance: null,
   isLoading: false,
   error: null,
 };
 
-// Analyze resume
-export const analyzeResume = createAsyncThunk(
-  'ai/analyzeResume',
-  async ({ resumeText, targetRole }, thunkAPI) => {
+export const analyzeResumePDF = createAsyncThunk(
+  'ai/analyzeResumePDF',
+  async ({ file, jobDescription, targetRole }, thunkAPI) => {
     try {
-      const response = await aiService.analyzeResume(resumeText, targetRole);
+      const response = await aiService.analyzeResumePDF(file, jobDescription, targetRole);
       return response.analysis || response;
     } catch (error) {
       const message =
@@ -29,13 +27,12 @@ export const analyzeResume = createAsyncThunk(
   }
 );
 
-// Optimize resume
-export const optimizeResume = createAsyncThunk(
-  'ai/optimizeResume',
-  async ({ resumeText, jobDescription }, thunkAPI) => {
+export const analyzeResumeText = createAsyncThunk(
+  'ai/analyzeResumeText',
+  async ({ resumeText, jobDescription, targetRole }, thunkAPI) => {
     try {
-      const response = await aiService.optimizeResume(resumeText, jobDescription);
-      return response.data || response;
+      const response = await aiService.analyzeResumeText(resumeText, jobDescription, targetRole);
+      return response.analysis || response;
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -46,17 +43,28 @@ export const optimizeResume = createAsyncThunk(
   }
 );
 
-// Generate cover letter
+export const analyzeResume = createAsyncThunk(
+  'ai/analyzeResume',
+  async ({ resumeData, jobDescription, jobRole }, thunkAPI) => {
+    try {
+      const response = await aiService.analyzeResume(resumeData, jobDescription, jobRole);
+      return response.analysis || response;
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message ||
+        error.toString();
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
 export const generateCoverLetter = createAsyncThunk(
   'ai/generateCoverLetter',
-  async ({ company, position, additionalInfo }, thunkAPI) => {
+  async ({ resumeData, jobDescription, jobRole }, thunkAPI) => {
     try {
-      const response = await aiService.generateCoverLetter({
-        company,
-        position,
-        additionalInfo,
-      });
-      return response.data || response.coverLetter || response;
+      const response = await aiService.generateCoverLetter(resumeData, jobDescription, jobRole);
+      return response.coverLetter || response;
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -67,21 +75,12 @@ export const generateCoverLetter = createAsyncThunk(
   }
 );
 
-// Generate interview questions
-export const generateInterviewQuestions = createAsyncThunk(
-  'ai/generateInterviewQuestions',
-  async ({ company, position, questionType }, thunkAPI) => {
+export const predictSuccess = createAsyncThunk(
+  'ai/predictSuccess',
+  async ({ applicationId, jobDescription }, thunkAPI) => {
     try {
-      const response = await aiService.generateInterviewQuestions({
-        company,
-        role: position,
-        questionType,
-      });
-      // Handle different response formats
-      if (response.questions) return response.questions;
-      if (response.data) return response.data;
-      if (Array.isArray(response)) return response;
-      return response;
+      const response = await aiService.predictSuccessProbability(applicationId, jobDescription);
+      return response.prediction || response;
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -92,16 +91,12 @@ export const generateInterviewQuestions = createAsyncThunk(
   }
 );
 
-// Get interview feedback
-export const getInterviewFeedback = createAsyncThunk(
-  'ai/getInterviewFeedback',
-  async ({ question, answer }, thunkAPI) => {
+export const fetchApplicationInsights = createAsyncThunk(
+  'ai/fetchApplicationInsights',
+  async (_, thunkAPI) => {
     try {
-      const response = await aiService.getInterviewFeedback({
-        question,
-        answer,
-      });
-      return response.feedback || response.data || response;
+      const response = await aiService.getApplicationInsights();
+      return response.insights || response;
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -112,30 +107,12 @@ export const getInterviewFeedback = createAsyncThunk(
   }
 );
 
-// Predict interview questions (legacy)
-export const predictInterviewQuestions = createAsyncThunk(
-  'ai/predictInterviewQuestions',
-  async ({ jobDescription }, thunkAPI) => {
+export const fetchInterviewGuidance = createAsyncThunk(
+  'ai/fetchInterviewGuidance',
+  async ({ company, jobDescription }, thunkAPI) => {
     try {
-      const response = await aiService.predictInterviewQuestions(jobDescription);
-      return response;
-    } catch (error) {
-      const message =
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
-// Analyze success probability
-export const analyzeSuccessProbability = createAsyncThunk(
-  'ai/analyzeSuccessProbability',
-  async ({ profileData, jobDescription }, thunkAPI) => {
-    try {
-      const response = await aiService.analyzeSuccessProbability(profileData, jobDescription);
-      return response;
+      const response = await aiService.getInterviewGuidance(company, jobDescription);
+      return response.guidance || response;
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -154,24 +131,38 @@ const aiSlice = createSlice({
       state.isLoading = false;
       state.error = null;
       state.resumeAnalysis = null;
-      state.optimizedResume = null;
       state.coverLetter = null;
-      state.interviewQuestions = null;
-      state.interviewFeedback = null;
-      state.successAnalysis = null;
-    },
-    clearResults: (state) => {
-      state.resumeAnalysis = null;
-      state.optimizedResume = null;
-      state.coverLetter = null;
-      state.interviewQuestions = null;
-      state.interviewFeedback = null;
-      state.successAnalysis = null;
+      state.successPrediction = null;
+      state.applicationInsights = null;
+      state.interviewGuidance = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      // Analyze Resume
+      .addCase(analyzeResumePDF.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(analyzeResumePDF.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.resumeAnalysis = action.payload;
+      })
+      .addCase(analyzeResumePDF.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      .addCase(analyzeResumeText.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(analyzeResumeText.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.resumeAnalysis = action.payload;
+      })
+      .addCase(analyzeResumeText.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
       .addCase(analyzeResume.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -184,20 +175,6 @@ const aiSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Optimize Resume
-      .addCase(optimizeResume.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(optimizeResume.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.optimizedResume = action.payload;
-      })
-      .addCase(optimizeResume.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
-      // Generate Cover Letter
       .addCase(generateCoverLetter.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -210,62 +187,44 @@ const aiSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Generate Interview Questions
-      .addCase(generateInterviewQuestions.pending, (state) => {
+      .addCase(predictSuccess.pending, (state) => {
         state.isLoading = true;
         state.error = null;
-        state.interviewQuestions = null;
-        state.interviewFeedback = null;
       })
-      .addCase(generateInterviewQuestions.fulfilled, (state, action) => {
+      .addCase(predictSuccess.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.interviewQuestions = action.payload;
+        state.successPrediction = action.payload;
       })
-      .addCase(generateInterviewQuestions.rejected, (state, action) => {
+      .addCase(predictSuccess.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Get Interview Feedback
-      .addCase(getInterviewFeedback.pending, (state) => {
+      .addCase(fetchApplicationInsights.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(getInterviewFeedback.fulfilled, (state, action) => {
+      .addCase(fetchApplicationInsights.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.interviewFeedback = action.payload;
+        state.applicationInsights = action.payload;
       })
-      .addCase(getInterviewFeedback.rejected, (state, action) => {
+      .addCase(fetchApplicationInsights.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Predict Interview Questions (legacy)
-      .addCase(predictInterviewQuestions.pending, (state) => {
+      .addCase(fetchInterviewGuidance.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(predictInterviewQuestions.fulfilled, (state, action) => {
+      .addCase(fetchInterviewGuidance.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.interviewQuestions = action.payload;
+        state.interviewGuidance = action.payload;
       })
-      .addCase(predictInterviewQuestions.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
-      // Analyze Success Probability
-      .addCase(analyzeSuccessProbability.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(analyzeSuccessProbability.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.successAnalysis = action.payload;
-      })
-      .addCase(analyzeSuccessProbability.rejected, (state, action) => {
+      .addCase(fetchInterviewGuidance.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const { reset, clearResults } = aiSlice.actions;
+export const { reset } = aiSlice.actions;
 export default aiSlice.reducer;

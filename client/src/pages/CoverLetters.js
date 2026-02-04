@@ -31,7 +31,8 @@ const CoverLetters = () => {
   const { coverLetter, isLoading, error } = useSelector((state) => state.ai);
 
   const [selectedApp, setSelectedApp] = useState('');
-  const [customDetails, setCustomDetails] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
+  const [resumeText, setResumeText] = useState('');
   const [copied, setCopied] = useState(false);
 
   const handleGenerate = () => {
@@ -40,8 +41,9 @@ const CoverLetters = () => {
       dispatch(
         generateCoverLetter({
           company: application.company,
-          position: application.position,
-          additionalInfo: customDetails,
+          position: application.position || application.jobTitle,
+          jobDescription,
+          resumeText,
         })
       );
     }
@@ -69,8 +71,8 @@ const CoverLetters = () => {
 
   return (
     <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="lg">
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc' }}>
@@ -81,9 +83,9 @@ const CoverLetters = () => {
             </Typography>
           </Box>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={3} sx={{ flex: 1 }}>
             {/* Generator Form */}
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={5} sx={{ display: 'flex' }}>
               <Card sx={{ 
                 height: '100%',
                 background: 'rgba(30, 41, 59, 0.5)',
@@ -142,10 +144,21 @@ const CoverLetters = () => {
                     fullWidth
                     multiline
                     rows={4}
-                    label="Additional Details (Optional)"
-                    value={customDetails}
-                    onChange={(e) => setCustomDetails(e.target.value)}
-                    placeholder="Add any specific skills, experiences, or points you want to highlight..."
+                    label="Job Description"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste the job description here..."
+                    sx={{ mb: 3 }}
+                  />
+
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={6}
+                    label="Resume Text"
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    placeholder="Paste your resume text here..."
                     sx={{ mb: 3 }}
                   />
 
@@ -155,7 +168,7 @@ const CoverLetters = () => {
                     size="large"
                     startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <AutoAwesome />}
                     onClick={handleGenerate}
-                    disabled={!selectedApp || isLoading}
+                    disabled={!selectedApp || !jobDescription.trim() || !resumeText.trim() || isLoading}
                     sx={{
                       background: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
                       '&:hover': {
@@ -176,7 +189,7 @@ const CoverLetters = () => {
             </Grid>
 
             {/* Output */}
-            <Grid item xs={12} md={7}>
+            <Grid item xs={12} md={7} sx={{ display: 'flex' }}>
               <Card sx={{ 
                 height: '100%', 
                 minHeight: 500,

@@ -14,7 +14,6 @@ import {
   Chip,
   Avatar,
   Divider,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -34,11 +33,10 @@ import {
   OpenInNew,
   Work,
   Business,
-  Notes,
+  Description,
 } from '@mui/icons-material';
-// IconButton removed - not currently used
 import { getApplication, updateApplication, deleteApplication } from '../store/applicationsSlice';
-import ProfessionalLayout from '../components/ProfessionalLayout';
+import { MainLayout } from '../components/MainLayout';
 
 const ApplicationDetail = () => {
   const { id } = useParams();
@@ -116,20 +114,20 @@ const ApplicationDetail = () => {
 
   if (isLoading || !currentApplication) {
     return (
-      <ProfessionalLayout>
+      <MainLayout>
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography>Loading...</Typography>
         </Box>
-      </ProfessionalLayout>
+      </MainLayout>
     );
   }
 
   const style = getStatusStyle(currentApplication.status);
 
   return (
-    <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="lg">
+    <MainLayout>
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <Box sx={{ mb: 4 }}>
             <Button
@@ -365,7 +363,7 @@ const ApplicationDetail = () => {
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                                <Notes sx={{ color: '#94a3b8' }} />
+                                <Description sx={{ color: '#94a3b8' }} />
                               </InputAdornment>
                             ),
                           }}
@@ -590,7 +588,7 @@ const ApplicationDetail = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </ProfessionalLayout>
+    </MainLayout>
   );
 };
 

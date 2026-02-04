@@ -28,8 +28,9 @@ import {
   Speed,
   WorkspacePremium,
   ContentPaste,
+  UploadFile,
 } from '@mui/icons-material';
-import { analyzeResume } from '../store/aiSlice';
+import { analyzeResumePDF, analyzeResumeText } from '../store/aiSlice';
 import ProfessionalLayout from '../components/ProfessionalLayout';
 
 const ResumeAnalyzer = () => {
@@ -37,11 +38,20 @@ const ResumeAnalyzer = () => {
   const { resumeAnalysis, isLoading, error } = useSelector((state) => state.ai);
 
   const [resumeText, setResumeText] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
   const [targetRole, setTargetRole] = useState('');
+  const [jobDescription, setJobDescription] = useState('');
 
   const handleAnalyze = () => {
+    if (!jobDescription.trim()) return;
+
+    if (resumeFile) {
+      dispatch(analyzeResumePDF({ file: resumeFile, jobDescription, targetRole: targetRole || 'General' }));
+      return;
+    }
+
     if (resumeText.trim()) {
-      dispatch(analyzeResume({ resumeText, targetRole: targetRole || 'General' }));
+      dispatch(analyzeResumeText({ resumeText, jobDescription, targetRole: targetRole || 'General' }));
     }
   };
 
@@ -51,6 +61,13 @@ const ResumeAnalyzer = () => {
       setResumeText(text);
     } catch (err) {
       console.error('Failed to read clipboard:', err);
+    }
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setResumeFile(file);
     }
   };
 
@@ -67,10 +84,15 @@ const ResumeAnalyzer = () => {
     return 'Poor';
   };
 
+  const formatPresentationScore =
+    resumeAnalysis?.scoreBreakdown?.formatAndPresentation !== undefined
+      ? `${resumeAnalysis.scoreBreakdown.formatAndPresentation}%`
+      : 'N/A';
+
   return (
     <ProfessionalLayout>
-      <Box sx={{ p: { xs: 2, md: 4 } }}>
-        <Container maxWidth="xl">
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: '100vh', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <Box sx={{ mb: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
@@ -99,9 +121,9 @@ const ResumeAnalyzer = () => {
             </Box>
           </Box>
 
-          <Grid container spacing={4}>
+          <Grid container spacing={4} sx={{ flex: 1 }}>
             {/* Input Section */}
-            <Grid item xs={12} lg={5}>
+            <Grid item xs={12} lg={5} sx={{ display: 'flex' }}>
               <Card sx={{ height: '100%' }}>
                 <CardContent sx={{ p: 4 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -122,6 +144,28 @@ const ResumeAnalyzer = () => {
                     sx={{ mb: 3 }}
                   />
 
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={6}
+                    label="Job Description"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste the job description here..."
+                    sx={{ mb: 3 }}
+                  />
+
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<UploadFile />}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                  >
+                    {resumeFile ? `PDF Selected: ${resumeFile.name}` : 'Upload Resume PDF (Optional)'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleFileChange} />
+                  </Button>
+
                   <Box sx={{ position: 'relative', mb: 3 }}>
                     <TextField
                       fullWidth
@@ -130,7 +174,7 @@ const ResumeAnalyzer = () => {
                       label="Resume Content"
                       value={resumeText}
                       onChange={(e) => setResumeText(e.target.value)}
-                      placeholder="Paste your resume content here..."
+                      placeholder="Paste your resume content here if not uploading PDF..."
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           fontFamily: 'monospace',
@@ -161,7 +205,7 @@ const ResumeAnalyzer = () => {
                     size="large"
                     startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <Analytics />}
                     onClick={handleAnalyze}
-                    disabled={!resumeText.trim() || isLoading}
+                    disabled={(!resumeText.trim() && !resumeFile) || !jobDescription.trim() || isLoading}
                     sx={{
                       py: 1.5,
                       background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
@@ -180,9 +224,9 @@ const ResumeAnalyzer = () => {
             </Grid>
 
             {/* Results Section */}
-            <Grid item xs={12} lg={7}>
+            <Grid item xs={12} lg={7} sx={{ display: 'flex' }}>
               {resumeAnalysis ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
                   {/* Overall Score Card */}
                   <Card
                     sx={{
@@ -239,16 +283,16 @@ const ResumeAnalyzer = () => {
                         </Grid>
                         <Grid item xs={12} md={8}>
                           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                            Section Scores
+                            Score Breakdown
                           </Typography>
                           <Grid container spacing={2}>
-                            {resumeAnalysis.sectionScores &&
-                              Object.entries(resumeAnalysis.sectionScores).map(([section, score]) => (
+                            {resumeAnalysis.scoreBreakdown &&
+                              Object.entries(resumeAnalysis.scoreBreakdown).map(([section, score]) => (
                                 <Grid item xs={6} key={section}>
                                   <Box>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                                       <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                                        {section}
+                                        {section.replace(/([A-Z])/g, ' $1')}
                                       </Typography>
                                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                         {score}%
@@ -275,10 +319,10 @@ const ResumeAnalyzer = () => {
                             <Speed />
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                                ATS Compatibility Score
+                                Format & Presentation
                               </Typography>
                               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                                {resumeAnalysis.atsScore}%
+                                {formatPresentationScore}
                               </Typography>
                             </Box>
                           </Box>
@@ -338,7 +382,7 @@ const ResumeAnalyzer = () => {
                             </Typography>
                           </Box>
                           <List dense>
-                            {resumeAnalysis.improvements?.map((improvement, idx) => (
+                            {resumeAnalysis.weaknesses?.map((improvement, idx) => (
                               <ListItem key={idx} sx={{ px: 0 }}>
                                 <ListItemIcon sx={{ minWidth: 32 }}>
                                   <Warning sx={{ color: '#f59e0b', fontSize: 18 }} />
